@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -19,6 +20,7 @@ import {
   CalendarCheck,
   Headphones,
 } from "lucide-react";
+import ServiceBookingForm from "@/components/services/service-booking-form";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -79,7 +81,7 @@ function getCategoryIcon(category: string) {
     "Laptop & PC": Laptop,
     AC: Snowflake,
     Refrigerator,
-    TV:Tv,
+    TV: Tv,
     "Washing Machine": WashingMachine,
     Electrical: Zap,
   };
@@ -170,7 +172,9 @@ export async function generateMetadata({
   };
 }
 
-export default async function ServiceDetailsPage({ params }: PageProps) {
+export default async function ServiceDetailsPage({
+  params,
+}: PageProps) {
   const { id } = await params;
   const service = await getService(id);
 
@@ -228,13 +232,11 @@ export default async function ServiceDetailsPage({ params }: PageProps) {
               </div>
 
               <div className="service-details-actions">
-                <Link
-                  href={`/sign-in?callbackURL=${encodeURIComponent(`/services/${service._id}`)}`}
-                  className="btn btn-primary"
-                >
+                <a href="#request-information" className="btn btn-primary">
                   Request This Service
                   <ArrowRight size={17} />
-                </Link>
+                </a>
+
                 <Link href="/services" className="btn btn-outline">
                   Explore More
                 </Link>
@@ -289,22 +291,14 @@ export default async function ServiceDetailsPage({ params }: PageProps) {
                 </div>
               </div>
 
-              <div className="details-content-card" id="request-information">
-                <span className="eyebrow">BOOKING INFORMATION</span>
-                <h2>Ready to Request a Repair?</h2>
-                <p>
-                  Sign in as a customer to submit your repair request.
-                  You can provide your preferred date, contact information
-                  and a description of the problem during booking.
-                </p>
-
-                <Link
-                  href={`/sign-in?callbackURL=${encodeURIComponent(`/services/${service._id}`)}`}
-                  className="btn btn-primary details-signin-button"
-                >
-                  Sign In to Continue
-                  <ArrowRight size={17} />
-                </Link>
+              <div
+                className="details-content-card"
+                id="request-information"
+              >
+                <ServiceBookingForm
+                  serviceId={service._id}
+                  technicianEmail={service.technicianEmail}
+                />
               </div>
             </div>
 
@@ -315,6 +309,7 @@ export default async function ServiceDetailsPage({ params }: PageProps) {
                 <small>
                   Final price may depend on the repair requirements.
                 </small>
+
                 <div className="details-price-divider" />
 
                 <div className="details-information-row">
@@ -344,9 +339,11 @@ export default async function ServiceDetailsPage({ params }: PageProps) {
 
               <div className="technician-details-card">
                 <span className="eyebrow">SERVICE PROVIDER</span>
+
                 <div className="technician-details-avatar">
                   <Wrench size={27} />
                 </div>
+
                 <h3>{service.technicianName}</h3>
                 <p>FixMate service provider</p>
 
@@ -370,7 +367,8 @@ export default async function ServiceDetailsPage({ params }: PageProps) {
                 <Headphones size={23} />
                 <strong>Need help?</strong>
                 <p>
-                  Explore our service catalogue to find another repair solution.
+                  Explore our service catalogue to find another repair
+                  solution.
                 </p>
                 <Link href="/services">
                   Browse Services <ArrowRight size={15} />
