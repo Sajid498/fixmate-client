@@ -1,4 +1,3 @@
-
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -21,170 +20,31 @@ import {
   Headphones,
 } from "lucide-react";
 
-const services = [
-  {
-    id: "sample-phone-screen",
-    title: "Smartphone Screen Replacement",
-    category: "Smartphone",
-    description:
-      "Professional screen replacement for cracked, damaged or unresponsive smartphone displays. Our service providers inspect your device, identify display issues and help restore your phone's usability.",
-    price: 45,
-    duration: "1–2 hours",
-    mode: "Shop Drop-off",
-    technician: "Rahim Electronics",
-    area: "Dhaka",
-    icon: Smartphone,
-    color: "blue",
-    features: [
-      "Screen damage inspection",
-      "Professional replacement service",
-      "Display functionality testing",
-      "Device condition verification",
-    ],
-  },
-  {
-    id: "sample-laptop-repair",
-    title: "Laptop Hardware Repair",
-    category: "Laptop & PC",
-    description:
-      "Diagnosis and repair for laptop hardware, keyboard, charging and performance issues. Get professional assistance for common laptop problems.",
-    price: 60,
-    duration: "2–4 hours",
-    mode: "Home Visit",
-    technician: "TechCare Solutions",
-    area: "Dhaka",
-    icon: Laptop,
-    color: "purple",
-    features: [
-      "Hardware diagnosis",
-      "Keyboard and charging inspection",
-      "Performance troubleshooting",
-      "Repair recommendations",
-    ],
-  },
-  {
-    id: "sample-ac-service",
-    title: "Air Conditioner Servicing",
-    category: "AC",
-    description:
-      "AC cleaning, cooling inspection and maintenance to keep your room comfortable. A technician visits your location to inspect your air conditioner.",
-    price: 35,
-    duration: "1–2 hours",
-    mode: "Home Visit",
-    technician: "CoolFix Experts",
-    area: "Dhaka",
-    icon: Snowflake,
-    color: "cyan",
-    features: [
-      "Cooling performance inspection",
-      "Air filter cleaning",
-      "General maintenance",
-      "Service recommendations",
-    ],
-  },
-  {
-    id: "sample-fridge-repair",
-    title: "Refrigerator Repair",
-    category: "Refrigerator",
-    description:
-      "Troubleshooting cooling problems, unusual noises and common refrigerator faults. Get professional assistance for your household refrigerator.",
-    price: 50,
-    duration: "2–3 hours",
-    mode: "Home Visit",
-    technician: "Appliance Care",
-    area: "Dhaka",
-    icon: Refrigerator,
-    color: "green",
-    features: [
-      "Cooling problem diagnosis",
-      "Noise inspection",
-      "Component assessment",
-      "Repair recommendations",
-    ],
-  },
-  {
-    id: "sample-tv-repair",
-    title: "LED TV Repair",
-    category: "TV",
-    description:
-      "Professional diagnosis for display, sound, power and connectivity problems. Get help identifying common television faults.",
-    price: 40,
-    duration: "2–3 hours",
-    mode: "Shop Drop-off",
-    technician: "Vision Repair Hub",
-    area: "Dhaka",
-    icon: Tv,
-    color: "orange",
-    features: [
-      "Display inspection",
-      "Sound troubleshooting",
-      "Power problem diagnosis",
-      "Connectivity inspection",
-    ],
-  },
-  {
-    id: "sample-electrical",
-    title: "Home Electrical Repair",
-    category: "Electrical",
-    description:
-      "Help with switches, sockets, wiring faults and common household electrical issues. A service provider can visit your home to inspect the problem.",
-    price: 30,
-    duration: "1–2 hours",
-    mode: "Home Visit",
-    technician: "SafeVolt Services",
-    area: "Dhaka",
-    icon: Zap,
-    color: "yellow",
-    features: [
-      "Electrical fault inspection",
-      "Switch and socket assessment",
-      "Wiring problem diagnosis",
-      "Safety recommendations",
-    ],
-  },
-  {
-    id: "sample-washing-machine",
-    title: "Washing Machine Repair",
-    category: "Washing Machine",
-    description:
-      "Repair support for drainage, spinning, water supply and washing machine faults. Get help diagnosing common appliance problems.",
-    price: 55,
-    duration: "2–3 hours",
-    mode: "Home Visit",
-    technician: "HomeTech Repair",
-    area: "Dhaka",
-    icon: WashingMachine,
-    color: "pink",
-    features: [
-      "Drainage problem inspection",
-      "Spinning system diagnosis",
-      "Water supply assessment",
-      "Repair recommendations",
-    ],
-  },
-  {
-    id: "sample-phone-battery",
-    title: "Smartphone Battery Replacement",
-    category: "Smartphone",
-    description:
-      "Battery inspection and replacement for devices with poor battery performance. Get assistance with common smartphone battery issues.",
-    price: 25,
-    duration: "1 hour",
-    mode: "Shop Drop-off",
-    technician: "MobileCare Center",
-    area: "Dhaka",
-    icon: Smartphone,
-    color: "blue",
-    features: [
-      "Battery condition inspection",
-      "Battery replacement service",
-      "Charging functionality testing",
-      "Device performance verification",
-    ],
-  },
-];
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-type Service = (typeof services)[number];
+type Service = {
+  _id: string;
+  title: string;
+  category: string;
+  description: string;
+  image: string;
+  basePrice: number;
+  estimatedDuration: string;
+  serviceMode: "Home Visit" | "Shop Drop-off";
+  serviceArea: string;
+  technicianName: string;
+  technicianEmail: string;
+  approvalStatus: string;
+  isAvailable: boolean;
+  createdAt: string;
+};
+
+type ServiceResponse = {
+  success: boolean;
+  message?: string;
+  data?: Service;
+};
 
 type PageProps = {
   params: Promise<{
@@ -192,27 +52,135 @@ type PageProps = {
   }>;
 };
 
+async function getService(id: string): Promise<Service | null> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/services/${encodeURIComponent(id)}`,
+      {
+        cache: "no-store",
+      },
+    );
+
+    if (!response.ok) return null;
+
+    const result = (await response.json()) as ServiceResponse;
+
+    if (!result.success || !result.data) return null;
+
+    return result.data;
+  } catch {
+    return null;
+  }
+}
+
+function getCategoryIcon(category: string) {
+  const icons: Record<string, typeof Wrench> = {
+    Smartphone,
+    "Laptop & PC": Laptop,
+    AC: Snowflake,
+    Refrigerator,
+    TV:Tv,
+    "Washing Machine": WashingMachine,
+    Electrical: Zap,
+  };
+
+  return icons[category] || Wrench;
+}
+
+function getCategoryColor(category: string) {
+  const colors: Record<string, string> = {
+    Smartphone: "blue",
+    "Laptop & PC": "purple",
+    AC: "cyan",
+    Refrigerator: "green",
+    TV: "orange",
+    "Washing Machine": "pink",
+    Electrical: "yellow",
+  };
+
+  return colors[category] || "blue";
+}
+
+function getFeatures(category: string) {
+  const features: Record<string, string[]> = {
+    Smartphone: [
+      "Device problem inspection",
+      "Professional repair assistance",
+      "Device functionality assessment",
+      "Repair recommendations",
+    ],
+    "Laptop & PC": [
+      "Hardware problem diagnosis",
+      "System and component inspection",
+      "Performance troubleshooting",
+      "Repair recommendations",
+    ],
+    AC: [
+      "Cooling performance inspection",
+      "Air conditioner assessment",
+      "General maintenance support",
+      "Service recommendations",
+    ],
+    Refrigerator: [
+      "Cooling problem diagnosis",
+      "Component inspection",
+      "Performance assessment",
+      "Repair recommendations",
+    ],
+    TV: [
+      "Display and sound inspection",
+      "Power problem diagnosis",
+      "Connectivity assessment",
+      "Repair recommendations",
+    ],
+    "Washing Machine": [
+      "Washing machine inspection",
+      "Drainage and spinning assessment",
+      "Water supply inspection",
+      "Repair recommendations",
+    ],
+    Electrical: [
+      "Electrical fault inspection",
+      "Switch and socket assessment",
+      "Wiring problem diagnosis",
+      "Safety recommendations",
+    ],
+  };
+
+  return (
+    features[category] || [
+      "Initial problem inspection",
+      "Professional repair assistance",
+      "Device condition assessment",
+      "Repair recommendations",
+    ]
+  );
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const service = services.find((item) => item.id === id);
+  const service = await getService(id);
 
   return {
     title: service ? service.title : "Service Not Found",
-    description: service?.description ?? "Explore repair services with FixMate.",
+    description:
+      service?.description ?? "Explore repair services with FixMate.",
   };
 }
 
 export default async function ServiceDetailsPage({ params }: PageProps) {
   const { id } = await params;
-  const service: Service | undefined = services.find((item) => item.id === id);
+  const service = await getService(id);
 
   if (!service) {
     notFound();
   }
 
-  const Icon = service.icon;
+  const Icon = getCategoryIcon(service.category);
+  const color = getCategoryColor(service.category);
+  const features = getFeatures(service.category);
 
   return (
     <div className="service-details-page">
@@ -251,32 +219,45 @@ export default async function ServiceDetailsPage({ params }: PageProps) {
               <div className="service-details-highlights">
                 <span>
                   <Clock3 size={17} />
-                  {service.duration}
+                  {service.estimatedDuration}
                 </span>
                 <span>
                   <MapPin size={17} />
-                  {service.area}
+                  {service.serviceArea}
                 </span>
               </div>
 
               <div className="service-details-actions">
-                <a href="#request-information" className="btn btn-primary">
+                <Link
+                  href={`/sign-in?callbackURL=${encodeURIComponent(`/services/${service._id}`)}`}
+                  className="btn btn-primary"
+                >
                   Request This Service
                   <ArrowRight size={17} />
-                </a>
+                </Link>
                 <Link href="/services" className="btn btn-outline">
                   Explore More
                 </Link>
               </div>
             </div>
 
-            <div className={`service-details-visual service-${service.color}`}>
+            <div className={`service-details-visual service-${color}`}>
               <span className="service-details-visual-label">
                 {service.category}
               </span>
-              <div className="service-details-main-icon">
-                <Icon size={88} strokeWidth={1.4} />
-              </div>
+
+              {service.image ? (
+                <img
+                  src={service.image}
+                  alt={service.title}
+                  className="service-details-image"
+                />
+              ) : (
+                <div className="service-details-main-icon">
+                  <Icon size={88} strokeWidth={1.4} />
+                </div>
+              )}
+
               <strong>Professional Repair Support</strong>
               <span>Reliable solutions with FixMate</span>
             </div>
@@ -299,7 +280,7 @@ export default async function ServiceDetailsPage({ params }: PageProps) {
                 <h2>Service Features</h2>
 
                 <div className="service-feature-list">
-                  {service.features.map((feature) => (
+                  {features.map((feature) => (
                     <div key={feature} className="service-feature-item">
                       <CheckCircle2 size={19} />
                       <span>{feature}</span>
@@ -318,32 +299,29 @@ export default async function ServiceDetailsPage({ params }: PageProps) {
                 </p>
 
                 <Link
-                  href={`/sign-in?callbackURL=${encodeURIComponent(`/services/${service.id}`)}`}
+                  href={`/sign-in?callbackURL=${encodeURIComponent(`/services/${service._id}`)}`}
                   className="btn btn-primary details-signin-button"
                 >
                   Sign In to Continue
                   <ArrowRight size={17} />
                 </Link>
-
-                <p className="details-booking-note">
-                  Booking submission will be available after authentication
-                  and backend integration are completed.
-                </p>
               </div>
             </div>
 
             <aside className="service-details-sidebar">
               <div className="details-price-card">
                 <span>Starting from</span>
-                <strong>${service.price}</strong>
-                <small>Final price may depend on the repair requirements.</small>
+                <strong>${service.basePrice}</strong>
+                <small>
+                  Final price may depend on the repair requirements.
+                </small>
                 <div className="details-price-divider" />
 
                 <div className="details-information-row">
                   <Clock3 size={18} />
                   <span>
                     <small>Estimated duration</small>
-                    <strong>{service.duration}</strong>
+                    <strong>{service.estimatedDuration}</strong>
                   </span>
                 </div>
 
@@ -351,7 +329,7 @@ export default async function ServiceDetailsPage({ params }: PageProps) {
                   <MapPin size={18} />
                   <span>
                     <small>Service area</small>
-                    <strong>{service.area}</strong>
+                    <strong>{service.serviceArea}</strong>
                   </span>
                 </div>
 
@@ -359,7 +337,7 @@ export default async function ServiceDetailsPage({ params }: PageProps) {
                   <CalendarCheck size={18} />
                   <span>
                     <small>Service mode</small>
-                    <strong>{service.mode}</strong>
+                    <strong>{service.serviceMode}</strong>
                   </span>
                 </div>
               </div>
@@ -369,12 +347,12 @@ export default async function ServiceDetailsPage({ params }: PageProps) {
                 <div className="technician-details-avatar">
                   <Wrench size={27} />
                 </div>
-                <h3>{service.technician}</h3>
+                <h3>{service.technicianName}</h3>
                 <p>FixMate service provider</p>
 
                 <div className="technician-details-area">
                   <MapPin size={15} />
-                  {service.area}
+                  {service.serviceArea}
                 </div>
               </div>
 
@@ -382,14 +360,18 @@ export default async function ServiceDetailsPage({ params }: PageProps) {
                 <ShieldCheck size={25} />
                 <div>
                   <strong>Service Approval</strong>
-                  <p>Services are intended to be reviewed by FixMate administrators before publication.</p>
+                  <p>
+                    This service has been approved by FixMate administrators.
+                  </p>
                 </div>
               </div>
 
               <div className="details-help-card">
                 <Headphones size={23} />
                 <strong>Need help?</strong>
-                <p>Explore our service catalogue to find another repair solution.</p>
+                <p>
+                  Explore our service catalogue to find another repair solution.
+                </p>
                 <Link href="/services">
                   Browse Services <ArrowRight size={15} />
                 </Link>

@@ -24,9 +24,10 @@ export default function DashboardLayout({
   const role = session?.user?.role as string | undefined;
   const allowedDashboard = role ? dashboardByRole[role] : undefined;
 
-  const hasAccess =
-    Boolean(allowedDashboard) &&
-    pathname.startsWith(allowedDashboard);
+const hasAccess = allowedDashboard
+  ? pathname === allowedDashboard ||
+    pathname.startsWith(`${allowedDashboard}/`)
+  : false;
 
   useEffect(() => {
     if (isPending) return;

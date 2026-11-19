@@ -1,149 +1,30 @@
-
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
 import {
-  Search,
-  SlidersHorizontal,
-  ArrowUpDown,
   ArrowRight,
-  Smartphone,
-  Laptop,
-  Snowflake,
-  Refrigerator,
-  Tv,
-  Zap,
-  WashingMachine,
-  Star,
+  ArrowUpDown,
   Clock3,
+  Laptop,
   MapPin,
+  Refrigerator,
+  Search,
+  ShieldCheck,
+  SlidersHorizontal,
+  Smartphone,
+  Snowflake,
+  Star,
+  Tv,
+  WashingMachine,
   Wrench,
   X,
+  Zap,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const services = [
-  {
-    id: "sample-phone-screen",
-    title: "Smartphone Screen Replacement",
-    category: "Smartphone",
-    description:
-      "Professional screen replacement for cracked, damaged or unresponsive smartphone displays.",
-    price: 45,
-    duration: "1–2 hours",
-    mode: "Shop Drop-off",
-    technician: "Rahim Electronics",
-    area: "Dhaka",
-    icon: Smartphone,
-    color: "blue",
-    createdAt: "2026-11-18",
-  },
-  {
-    id: "sample-laptop-repair",
-    title: "Laptop Hardware Repair",
-    category: "Laptop & PC",
-    description:
-      "Diagnosis and repair for laptop hardware, keyboard, charging and performance issues.",
-    price: 60,
-    duration: "2–4 hours",
-    mode: "Home Visit",
-    technician: "TechCare Solutions",
-    area: "Dhaka",
-    icon: Laptop,
-    color: "purple",
-    createdAt: "2026-11-17",
-  },
-  {
-    id: "sample-ac-service",
-    title: "Air Conditioner Servicing",
-    category: "AC",
-    description:
-      "AC cleaning, cooling inspection and maintenance to keep your room comfortable.",
-    price: 35,
-    duration: "1–2 hours",
-    mode: "Home Visit",
-    technician: "CoolFix Experts",
-    area: "Dhaka",
-    icon: Snowflake,
-    color: "cyan",
-    createdAt: "2026-11-16",
-  },
-  {
-    id: "sample-fridge-repair",
-    title: "Refrigerator Repair",
-    category: "Refrigerator",
-    description:
-      "Troubleshooting cooling problems, unusual noises and common refrigerator faults.",
-    price: 50,
-    duration: "2–3 hours",
-    mode: "Home Visit",
-    technician: "Appliance Care",
-    area: "Dhaka",
-    icon: Refrigerator,
-    color: "green",
-    createdAt: "2026-11-15",
-  },
-  {
-    id: "sample-tv-repair",
-    title: "LED TV Repair",
-    category: "TV",
-    description:
-      "Professional diagnosis for display, sound, power and connectivity problems.",
-    price: 40,
-    duration: "2–3 hours",
-    mode: "Shop Drop-off",
-    technician: "Vision Repair Hub",
-    area: "Dhaka",
-    icon: Tv,
-    color: "orange",
-    createdAt: "2026-11-14",
-  },
-  {
-    id: "sample-electrical",
-    title: "Home Electrical Repair",
-    category: "Electrical",
-    description:
-      "Help with switches, sockets, wiring faults and common household electrical issues.",
-    price: 30,
-    duration: "1–2 hours",
-    mode: "Home Visit",
-    technician: "SafeVolt Services",
-    area: "Dhaka",
-    icon: Zap,
-    color: "yellow",
-    createdAt: "2026-11-13",
-  },
-  {
-    id: "sample-washing-machine",
-    title: "Washing Machine Repair",
-    category: "Washing Machine",
-    description:
-      "Repair support for drainage, spinning, water supply and washing machine faults.",
-    price: 55,
-    duration: "2–3 hours",
-    mode: "Home Visit",
-    technician: "HomeTech Repair",
-    area: "Dhaka",
-    icon: WashingMachine,
-    color: "pink",
-    createdAt: "2026-11-12",
-  },
-  {
-    id: "sample-phone-battery",
-    title: "Smartphone Battery Replacement",
-    category: "Smartphone",
-    description:
-      "Battery inspection and replacement for devices with poor battery performance.",
-    price: 25,
-    duration: "1 hour",
-    mode: "Shop Drop-off",
-    technician: "MobileCare Center",
-    area: "Dhaka",
-    icon: Smartphone,
-    color: "blue",
-    createdAt: "2026-11-11",
-  },
-];
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 const categories = [
   "All",
@@ -164,6 +45,58 @@ const sortOptions = [
   { label: "Price: High to Low", value: "price-high" },
 ];
 
+const categoryIcons: Record<string, LucideIcon> = {
+  Smartphone,
+  "Laptop & PC": Laptop,
+  AC: Snowflake,
+  Refrigerator,
+  TV:Tv,
+  "Washing Machine": WashingMachine,
+  Electrical: Zap,
+};
+
+const categoryColors: Record<string, string> = {
+  Smartphone: "blue",
+  "Laptop & PC": "purple",
+  AC: "cyan",
+  Refrigerator: "green",
+  TV: "orange",
+  "Washing Machine": "pink",
+  Electrical: "yellow",
+};
+
+type Service = {
+  _id: string;
+  title: string;
+  category: string;
+  description: string;
+  image: string;
+  basePrice: number;
+  estimatedDuration: string;
+  serviceMode: string;
+  serviceArea: string;
+  technicianName: string;
+  technicianEmail: string;
+  approvalStatus: string;
+  isAvailable: boolean;
+  createdAt: string;
+};
+
+type ServicesResponse = {
+  success: boolean;
+  message?: string;
+  count: number;
+  pagination?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+  data: Service[];
+};
+
 type ServicesCatalogueProps = {
   initialCategory?: string;
 };
@@ -178,46 +111,111 @@ export default function ServicesCatalogue({
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState(validCategory);
   const [mode, setMode] = useState("All");
+  const [area, setArea] = useState("");
   const [sort, setSort] = useState("newest");
+  const [page, setPage] = useState(1);
+  const [services, setServices] = useState<Service[]>([]);
+  const [totalServices, setTotalServices] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const filteredServices = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
+  const loadServices = useCallback(
+    async (signal: AbortSignal) => {
+      setLoading(true);
+      setError("");
 
-    const filtered = services.filter((service) => {
-      const matchesSearch =
-        !normalizedSearch ||
-        service.title.toLowerCase().includes(normalizedSearch) ||
-        service.category.toLowerCase().includes(normalizedSearch) ||
-        service.description.toLowerCase().includes(normalizedSearch) ||
-        service.technician.toLowerCase().includes(normalizedSearch);
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: "12",
+        sort,
+      });
 
-      const matchesCategory =
-        category === "All" || service.category === category;
+      if (search.trim()) params.set("search", search.trim());
+      if (category !== "All") params.set("category", category);
+      if (mode !== "All") params.set("serviceMode", mode);
+      if (area.trim()) params.set("serviceArea", area.trim());
 
-      const matchesMode = mode === "All" || service.mode === mode;
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/services?${params.toString()}`,
+          {
+            method: "GET",
+            cache: "no-store",
+            signal,
+          },
+        );
 
-      return matchesSearch && matchesCategory && matchesMode;
-    });
+        const result = (await response.json()) as ServicesResponse;
 
-    return [...filtered].sort((a, b) => {
-      if (sort === "price-low") return a.price - b.price;
-      if (sort === "price-high") return b.price - a.price;
-      return (
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime()
-      );
-    });
-  }, [search, category, mode, sort]);
+        if (!response.ok || !result.success) {
+          throw new Error(result.message || "Unable to load repair services.");
+        }
+
+        setServices(result.data || []);
+        setTotalServices(result.pagination?.total ?? result.count ?? 0);
+        setTotalPages(result.pagination?.totalPages ?? 0);
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
+
+        setServices([]);
+        setTotalServices(0);
+        setTotalPages(0);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load repair services. Please try again.",
+        );
+      } finally {
+        if (!signal.aborted) setLoading(false);
+      }
+    },
+    [page, search, category, mode, area, sort],
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      loadServices(controller.signal);
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [loadServices]);
 
   const clearFilters = () => {
     setSearch("");
     setCategory("All");
     setMode("All");
+    setArea("");
     setSort("newest");
+    setPage(1);
   };
 
   const hasActiveFilters =
-    search !== "" || category !== "All" || mode !== "All" || sort !== "newest";
+    search.trim() !== "" ||
+    category !== "All" ||
+    mode !== "All" ||
+    area.trim() !== "" ||
+    sort !== "newest";
+
+  const handleCategoryChange = (value: string) => {
+    setCategory(value);
+    setPage(1);
+  };
+
+  const handleModeChange = (value: string) => {
+    setMode(value);
+    setPage(1);
+  };
+
+  const getIcon = (serviceCategory: string) =>
+    categoryIcons[serviceCategory] || Wrench;
+
+  const getColor = (serviceCategory: string) =>
+    categoryColors[serviceCategory] || "blue";
 
   return (
     <div className="services-page">
@@ -244,14 +242,20 @@ export default function ServicesCatalogue({
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
               placeholder="What needs to be repaired?"
               aria-label="Search repair services"
             />
             {search && (
               <button
                 type="button"
-                onClick={() => setSearch("")}
+                onClick={() => {
+                  setSearch("");
+                  setPage(1);
+                }}
                 aria-label="Clear search"
               >
                 <X size={18} />
@@ -260,8 +264,14 @@ export default function ServicesCatalogue({
           </div>
 
           <div className="services-hero-note">
-            <span><Star size={15} fill="currentColor" /> Multiple repair categories</span>
-            <span><MapPin size={15} /> Convenient service options</span>
+            <span>
+              <Star size={15} fill="currentColor" />
+              Multiple repair categories
+            </span>
+            <span>
+              <MapPin size={15} />
+              Convenient service options
+            </span>
           </div>
         </div>
       </section>
@@ -276,7 +286,7 @@ export default function ServicesCatalogue({
             </div>
 
             <div className="catalogue-count">
-              <strong>{filteredServices.length}</strong>
+              <strong>{totalServices}</strong>
               <span>Services found</span>
             </div>
           </div>
@@ -302,13 +312,15 @@ export default function ServicesCatalogue({
                     <button
                       type="button"
                       key={item}
-                      onClick={() => setCategory(item)}
+                      onClick={() => handleCategoryChange(item)}
                       className={`filter-option ${
                         category === item ? "filter-option-active" : ""
                       }`}
                     >
                       <span>{item}</span>
-                      {category === item && <span className="filter-check">✓</span>}
+                      {category === item && (
+                        <span className="filter-check">✓</span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -323,30 +335,52 @@ export default function ServicesCatalogue({
                     <button
                       type="button"
                       key={item}
-                      onClick={() => setMode(item)}
+                      onClick={() => handleModeChange(item)}
                       className={`filter-option ${
                         mode === item ? "filter-option-active" : ""
                       }`}
                     >
                       <span>{item}</span>
-                      {mode === item && <span className="filter-check">✓</span>}
+                      {mode === item && (
+                        <span className="filter-check">✓</span>
+                      )}
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="filter-divider" />
+
+              <div className="filter-group">
+                <h4>Service Area</h4>
+                <input
+                  type="text"
+                  value={area}
+                  onChange={(event) => {
+                    setArea(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="Enter area or city"
+                  aria-label="Filter by service area"
+                />
               </div>
             </aside>
 
             <div className="catalogue-results">
               <div className="results-toolbar">
                 <p>
-                  Showing <strong>{filteredServices.length}</strong> repair services
+                  Showing <strong>{services.length}</strong> of{" "}
+                  <strong>{totalServices}</strong> repair services
                 </p>
 
                 <label className="sort-control">
                   <ArrowUpDown size={16} />
                   <select
                     value={sort}
-                    onChange={(event) => setSort(event.target.value)}
+                    onChange={(event) => {
+                      setSort(event.target.value);
+                      setPage(1);
+                    }}
                     aria-label="Sort services"
                   >
                     {sortOptions.map((option) => (
@@ -358,70 +392,143 @@ export default function ServicesCatalogue({
                 </label>
               </div>
 
-              {filteredServices.length > 0 ? (
-                <div className="services-card-grid">
-                  {filteredServices.map((service) => {
-                    const Icon = service.icon;
+              {loading ? (
+                <div className="services-empty-state">
+                  <span>
+                    <Wrench size={32} />
+                  </span>
+                  <h3>Loading repair services...</h3>
+                  <p>Please wait while we find available services.</p>
+                </div>
+              ) : error ? (
+                <div className="services-empty-state">
+                  <span>
+                    <ShieldCheck size={32} />
+                  </span>
+                  <h3>Unable to load services</h3>
+                  <p>{error}</p>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                      const controller = new AbortController();
+                      loadServices(controller.signal);
+                    }}
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : services.length > 0 ? (
+                <>
+                  <div className="services-card-grid">
+                    {services.map((service) => {
+                      const Icon = getIcon(service.category);
+                      const color = getColor(service.category);
 
-                    return (
-                      <article className="service-card" key={service.id}>
-                        <div className={`service-card-visual service-${service.color}`}>
-                          <span className="service-category-label">
-                            {service.category}
-                          </span>
-                          <div className="service-visual-icon">
-                            <Icon size={48} strokeWidth={1.5} />
-                          </div>
-                          <span className="service-visual-caption">
-                            FIXMATE REPAIR SERVICE
-                          </span>
-                        </div>
-
-                        <div className="service-card-content">
-                          <div className="service-card-title-row">
-                            <h3>{service.title}</h3>
-                          </div>
-
-                          <p className="service-description">
-                            {service.description}
-                          </p>
-
-                          <div className="service-technician">
-                            <span className="technician-avatar">
-                              <Wrench size={17} />
+                      return (
+                        <article className="service-card" key={service._id}>
+                          <div
+                            className={`service-card-visual service-${color}`}
+                          >
+                            <span className="service-category-label">
+                              {service.category}
                             </span>
-                            <span>
-                              <small>Service provider</small>
-                              <strong>{service.technician}</strong>
+
+                            {service.image ? (
+                              <img
+                                src={service.image}
+                                alt={service.title}
+                                className="service-card-image"
+                              />
+                            ) : (
+                              <div className="service-visual-icon">
+                                <Icon size={48} strokeWidth={1.5} />
+                              </div>
+                            )}
+
+                            <span className="service-visual-caption">
+                              FIXMATE REPAIR SERVICE
                             </span>
                           </div>
 
-                          <div className="service-meta">
-                            <span><Clock3 size={14} /> {service.duration}</span>
-                            <span><MapPin size={14} /> {service.area}</span>
-                          </div>
-
-                          <div className="service-card-bottom">
-                            <div className="service-price">
-                              <small>Starting from</small>
-                              <strong>${service.price}</strong>
+                          <div className="service-card-content">
+                            <div className="service-card-title-row">
+                              <h3>{service.title}</h3>
                             </div>
 
-                            <Link
-                              href={`/services/${service.id}`}
-                              className="service-details-link"
-                            >
-                              View Details <ArrowRight size={16} />
-                            </Link>
+                            <p className="service-description">
+                              {service.description}
+                            </p>
+
+                            <div className="service-technician">
+                              <span className="technician-avatar">
+                                <Wrench size={17} />
+                              </span>
+                              <span>
+                                <small>Service provider</small>
+                                <strong>{service.technicianName}</strong>
+                              </span>
+                            </div>
+
+                            <div className="service-meta">
+                              <span>
+                                <Clock3 size={14} />
+                                {service.estimatedDuration}
+                              </span>
+                              <span>
+                                <MapPin size={14} />
+                                {service.serviceArea}
+                              </span>
+                            </div>
+
+                            <div className="service-card-bottom">
+                              <div className="service-price">
+                                <small>Starting from</small>
+                                <strong>${service.basePrice}</strong>
+                              </div>
+
+                              <Link
+                                href={`/services/${service._id}`}
+                                className="service-details-link"
+                              >
+                                View Details <ArrowRight size={16} />
+                              </Link>
+                            </div>
                           </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="services-pagination">
+                      <button
+                        type="button"
+                        disabled={page <= 1}
+                        onClick={() => setPage((current) => current - 1)}
+                      >
+                        Previous
+                      </button>
+
+                      <span>
+                        Page {page} of {totalPages}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={page >= totalPages}
+                        onClick={() => setPage((current) => current + 1)}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="services-empty-state">
-                  <span><Search size={32} /></span>
+                  <span>
+                    <Search size={32} />
+                  </span>
                   <h3>No services found</h3>
                   <p>
                     Try another search term or adjust your filters

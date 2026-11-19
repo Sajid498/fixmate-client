@@ -17,6 +17,7 @@ import {
   UserRound,
   Wrench,
   XCircle,
+  CreditCard,
 } from "lucide-react";
 import { authenticatedRequest } from "@/lib/api";
 
