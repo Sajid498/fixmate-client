@@ -88,10 +88,15 @@ export default function SignUpPage() {
         );
       }
 
-      toast.success("Your FixMate account has been created.");
+toast.success("Your FixMate account has been created.");
 
-     router.replace("/");
-      router.refresh();
+const destination =
+  role === "technician"
+    ? "/dashboard/technician"
+    : "/dashboard/customer";
+
+router.replace(destination);
+router.refresh();
     } catch (error) {
       const message =
         error instanceof Error

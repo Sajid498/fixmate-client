@@ -64,8 +64,8 @@ function SignInForm() {
           : dashboardByRole[role || ""] || "/";
 
       toast.success("Welcome back to FixMate.");
-      router.replace("/");
-      router.refresh();
+router.replace(destination);
+router.refresh();
     } catch (error) {
       toast.error(
         error instanceof Error
