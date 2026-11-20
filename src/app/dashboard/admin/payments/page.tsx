@@ -12,13 +12,13 @@ import {
   CreditCard,
   Eye,
   LoaderCircle,
+  Receipt,
   RefreshCw,
   Search,
-  UserRound,
-  X,
-  Receipt,
   TrendingUp,
+  UserRound,
   Wallet,
+  X,
 } from "lucide-react";
 import { authenticatedRequest } from "@/lib/api";
 import { toast } from "sonner";
@@ -30,23 +30,33 @@ interface AdminPayment {
   customerName?: string;
   customerEmail?: string;
   serviceTitle?: string;
+  technicianName?: string;
   amount: number;
   currency?: string;
   status?: string;
   paymentStatus?: string;
+  paymentProvider?: string;
   paymentMethod?: string;
   stripeSessionId?: string;
   stripePaymentIntentId?: string;
   transactionId?: string;
+  paidAt?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+interface RevenueCurrency {
+  currency: string;
+  totalRevenue: number;
+  totalTransactions: number;
 }
 
 interface PaymentResponse {
   success: boolean;
   count: number;
-  totalRevenue: number;
+  totalRevenue: number | null;
   totalTransactions: number;
+  revenueByCurrency: RevenueCurrency[];
   data: AdminPayment[];
 }
 
@@ -66,7 +76,7 @@ function formatDate(value?: string) {
   });
 }
 
-function formatCurrency(amount: number, currency = "usd") {
+function formatCurrency(amount: number, currency = "BDT") {
   const normalizedCurrency = currency.toUpperCase();
 
   try {
@@ -74,7 +84,7 @@ function formatCurrency(amount: number, currency = "usd") {
       style: "currency",
       currency: normalizedCurrency,
       maximumFractionDigits: 2,
-    }).format(amount);
+    }).format(Number(amount || 0));
   } catch {
     return `${normalizedCurrency} ${Number(amount || 0).toLocaleString()}`;
   }
@@ -84,8 +94,18 @@ function getPaymentStatus(payment: AdminPayment) {
   return (
     payment.paymentStatus ||
     payment.status ||
-    "completed"
+    "unknown"
   ).toLowerCase();
+}
+
+function getProviderLabel(payment: AdminPayment) {
+  if (payment.paymentProvider === "stripe") return "Stripe";
+
+  if (payment.paymentProvider === "development_simulator") {
+    return "Development Simulator";
+  }
+
+  return payment.paymentMethod || "Other";
 }
 
 function statusStyle(status: string) {
@@ -121,7 +141,9 @@ function shortenId(value?: string) {
 
 export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<AdminPayment[]>([]);
-  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [revenueByCurrency, setRevenueByCurrency] = useState<
+    RevenueCurrency[]
+  >([]);
   const [totalTransactions, setTotalTransactions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -134,17 +156,17 @@ export default function AdminPaymentsPage() {
       setLoading(true);
 
       const result = await authenticatedRequest<PaymentResponse>(
-        "/api/admin/payments"
+        "/api/admin/payments",
       );
 
       setPayments(result.data || []);
-      setTotalRevenue(Number(result.totalRevenue || 0));
+      setRevenueByCurrency(result.revenueByCurrency || []);
       setTotalTransactions(Number(result.totalTransactions || 0));
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Unable to load payment records."
+          : "Unable to load payment records.",
       );
     } finally {
       setLoading(false);
@@ -160,7 +182,7 @@ export default function AdminPaymentsPage() {
 
     if (filter !== "all") {
       result = result.filter(
-        (payment) => getPaymentStatus(payment) === filter
+        (payment) => getPaymentStatus(payment) === filter,
       );
     }
 
@@ -176,40 +198,36 @@ export default function AdminPaymentsPage() {
         payment.customerName,
         payment.customerEmail,
         payment.serviceTitle,
+        payment.technicianName,
         payment.transactionId,
         payment.stripeSessionId,
         payment.stripePaymentIntentId,
+        payment.paymentProvider,
       ];
 
       return searchableValues.some((value) =>
-        value?.toLowerCase().includes(term)
+        value?.toLowerCase().includes(term),
       );
     });
   }, [payments, search, filter]);
 
   const completedCount = payments.filter((payment) =>
     ["completed", "paid", "succeeded", "success"].includes(
-      getPaymentStatus(payment)
-    )
+      getPaymentStatus(payment),
+    ),
   ).length;
 
   const pendingCount = payments.filter((payment) =>
-    ["pending", "processing"].includes(getPaymentStatus(payment))
+    ["pending", "processing"].includes(getPaymentStatus(payment)),
   ).length;
 
   const failedCount = payments.filter((payment) =>
     ["failed", "refunded", "cancelled", "canceled"].includes(
-      getPaymentStatus(payment)
-    )
+      getPaymentStatus(payment),
+    ),
   ).length;
 
   const stats = [
-    {
-      label: "Recorded Revenue",
-      value: formatCurrency(totalRevenue),
-      icon: TrendingUp,
-      color: "bg-green-50 text-green-600",
-    },
     {
       label: "Total Transactions",
       value: totalTransactions.toLocaleString(),
@@ -227,6 +245,12 @@ export default function AdminPaymentsPage() {
       value: pendingCount.toLocaleString(),
       icon: Clock3,
       color: "bg-amber-50 text-amber-600",
+    },
+    {
+      label: "Failed / Refunded",
+      value: failedCount.toLocaleString(),
+      icon: Wallet,
+      color: "bg-red-50 text-red-600",
     },
   ];
 
@@ -246,9 +270,11 @@ export default function AdminPaymentsPage() {
             <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-blue-600">
               Administration
             </p>
+
             <h1 className="text-3xl font-bold text-slate-900">
               Payment Management
             </h1>
+
             <p className="mt-2 text-sm text-slate-500">
               Monitor transactions, recorded revenue and customer payments.
             </p>
@@ -282,6 +308,7 @@ export default function AdminPaymentsPage() {
                     <Icon size={21} />
                   </div>
                 </div>
+
                 <p className="mt-4 break-words text-2xl font-bold text-slate-900">
                   {item.value}
                 </p>
@@ -290,38 +317,48 @@ export default function AdminPaymentsPage() {
           })}
         </div>
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-red-50 p-2 text-red-600">
-                <Wallet size={19} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">
-                  Failed / Refunded / Cancelled
-                </p>
-                <p className="text-xl font-bold text-slate-900">
-                  {failedCount}
-                </p>
-              </div>
+        <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="rounded-xl bg-green-50 p-3 text-green-600">
+              <TrendingUp size={22} />
+            </div>
+
+            <div>
+              <h2 className="font-bold text-slate-900">
+                Recorded Revenue
+              </h2>
+              <p className="text-sm text-slate-500">
+                Revenue is separated by transaction currency.
+              </p>
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-green-50 p-2 text-green-600">
-                <CreditCard size={19} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">
-                  Payment Records Retrieved
-                </p>
-                <p className="text-xl font-bold text-slate-900">
-                  {payments.length}
-                </p>
-              </div>
+          {revenueByCurrency.length === 0 ? (
+            <p className="py-5 text-sm text-slate-500">
+              No completed payment revenue recorded yet.
+            </p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {revenueByCurrency.map((item) => (
+                <div
+                  key={item.currency}
+                  className="rounded-xl border border-slate-100 bg-slate-50 p-5"
+                >
+                  <p className="text-sm font-medium text-slate-500">
+                    {item.currency} Revenue
+                  </p>
+
+                  <p className="mt-2 text-2xl font-bold text-slate-900">
+                    {formatCurrency(item.totalRevenue, item.currency)}
+                  </p>
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    {item.totalTransactions} transactions
+                  </p>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
 
         <div className="mb-6 flex flex-col gap-3 sm:flex-row">
@@ -330,6 +367,7 @@ export default function AdminPaymentsPage() {
               size={19}
               className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
             />
+
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -344,9 +382,7 @@ export default function AdminPaymentsPage() {
             className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500"
           >
             <option value="all">All Payments</option>
-            <option value="completed">Completed</option>
             <option value="paid">Paid</option>
-            <option value="succeeded">Succeeded</option>
             <option value="pending">Pending</option>
             <option value="processing">Processing</option>
             <option value="failed">Failed</option>
@@ -359,6 +395,7 @@ export default function AdminPaymentsPage() {
           <h2 className="font-bold text-slate-900">
             Transaction History
           </h2>
+
           <p className="text-xs text-slate-500">
             {filteredPayments.length} matching transactions
           </p>
@@ -371,6 +408,7 @@ export default function AdminPaymentsPage() {
                 size={35}
                 className="mx-auto mb-3 animate-spin text-blue-600"
               />
+
               <p className="text-sm text-slate-500">
                 Loading payment records...
               </p>
@@ -382,9 +420,11 @@ export default function AdminPaymentsPage() {
               size={42}
               className="mx-auto mb-4 text-slate-300"
             />
+
             <h3 className="font-semibold text-slate-800">
               No transactions found
             </h3>
+
             <p className="mt-2 text-sm text-slate-500">
               Try changing your search or payment status filter.
             </p>
@@ -392,13 +432,14 @@ export default function AdminPaymentsPage() {
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[850px] text-left text-sm">
+              <table className="w-full min-w-[1050px] text-left text-sm">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-5 py-4">Transaction</th>
                     <th className="px-5 py-4">Customer</th>
                     <th className="px-5 py-4">Service</th>
                     <th className="px-5 py-4">Amount</th>
+                    <th className="px-5 py-4">Provider</th>
                     <th className="px-5 py-4">Date</th>
                     <th className="px-5 py-4">Status</th>
                     <th className="px-5 py-4 text-right">Action</th>
@@ -416,8 +457,11 @@ export default function AdminPaymentsPage() {
                       >
                         <td className="px-5 py-4">
                           <p className="font-semibold text-slate-900">
-                            {shortenId(payment._id)}
+                            {shortenId(
+                              payment.transactionId || payment._id,
+                            )}
                           </p>
+
                           <p className="mt-1 text-xs text-slate-400">
                             Booking: {shortenId(payment.bookingId)}
                           </p>
@@ -427,6 +471,7 @@ export default function AdminPaymentsPage() {
                           <p className="font-medium text-slate-800">
                             {payment.customerName || "Customer"}
                           </p>
+
                           <p className="mt-1 max-w-40 truncate text-xs text-slate-400">
                             {payment.customerEmail || "No email"}
                           </p>
@@ -441,12 +486,16 @@ export default function AdminPaymentsPage() {
                         <td className="px-5 py-4 font-semibold text-slate-900">
                           {formatCurrency(
                             Number(payment.amount || 0),
-                            payment.currency
+                            payment.currency,
                           )}
                         </td>
 
                         <td className="px-5 py-4 text-slate-600">
-                          {formatDate(payment.createdAt)}
+                          {getProviderLabel(payment)}
+                        </td>
+
+                        <td className="px-5 py-4 text-slate-600">
+                          {formatDate(payment.paidAt || payment.createdAt)}
                         </td>
 
                         <td className="px-5 py-4">
@@ -484,6 +533,7 @@ export default function AdminPaymentsPage() {
                 <h2 className="text-xl font-bold text-slate-900">
                   Transaction Details
                 </h2>
+
                 <p className="mt-1 text-xs text-slate-500">
                   Payment record information
                 </p>
@@ -511,7 +561,7 @@ export default function AdminPaymentsPage() {
                 <p className="mt-1 text-3xl font-bold text-slate-900">
                   {formatCurrency(
                     Number(selectedPayment.amount || 0),
-                    selectedPayment.currency
+                    selectedPayment.currency,
                   )}
                 </p>
 
@@ -527,20 +577,27 @@ export default function AdminPaymentsPage() {
                   <p className="text-xs text-slate-400">
                     Payment Record ID
                   </p>
+
                   <p className="mt-1 break-all text-sm font-semibold text-slate-800">
                     {selectedPayment._id}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-400">Booking ID</p>
+                  <p className="text-xs text-slate-400">
+                    Booking ID
+                  </p>
+
                   <p className="mt-1 break-all text-sm font-semibold text-slate-800">
                     {selectedPayment.bookingId || "Not available"}
                   </p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-400">Transaction ID</p>
+                  <p className="text-xs text-slate-400">
+                    Transaction ID
+                  </p>
+
                   <p className="mt-1 break-all text-sm font-semibold text-slate-800">
                     {selectedPayment.transactionId ||
                       selectedPayment.stripePaymentIntentId ||
@@ -552,8 +609,9 @@ export default function AdminPaymentsPage() {
                   <p className="text-xs text-slate-400">
                     Stripe Checkout Session
                   </p>
+
                   <p className="mt-1 break-all text-sm text-slate-700">
-                    {selectedPayment.stripeSessionId || "Not available"}
+                    {selectedPayment.stripeSessionId || "Not applicable"}
                   </p>
                 </div>
               </div>
@@ -561,6 +619,7 @@ export default function AdminPaymentsPage() {
               <div className="rounded-xl border border-slate-100 p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <UserRound size={18} className="text-blue-600" />
+
                   <h4 className="font-semibold text-slate-900">
                     Customer Information
                   </h4>
@@ -578,6 +637,7 @@ export default function AdminPaymentsPage() {
               <div className="rounded-xl border border-slate-100 p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <CreditCard size={18} className="text-blue-600" />
+
                   <h4 className="font-semibold text-slate-900">
                     Payment Information
                   </h4>
@@ -591,15 +651,25 @@ export default function AdminPaymentsPage() {
                 </p>
 
                 <p className="mt-2 text-sm text-slate-600">
-                  Payment Method:{" "}
+                  Payment Provider:{" "}
                   <span className="font-semibold text-slate-800">
-                    {selectedPayment.paymentMethod || "Stripe"}
+                    {getProviderLabel(selectedPayment)}
+                  </span>
+                </p>
+
+                <p className="mt-2 text-sm text-slate-600">
+                  Technician:{" "}
+                  <span className="font-semibold text-slate-800">
+                    {selectedPayment.technicianName || "Not available"}
                   </span>
                 </p>
 
                 <p className="mt-2 flex items-center gap-2 text-sm text-slate-600">
                   <CalendarDays size={15} />
-                  {formatDate(selectedPayment.createdAt)}
+
+                  {formatDate(
+                    selectedPayment.paidAt || selectedPayment.createdAt,
+                  )}
                 </p>
               </div>
 

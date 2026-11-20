@@ -51,6 +51,14 @@ interface ApiResponse<T> {
   data: T;
 }
 
+interface CheckoutResponse {
+  success: boolean;
+  mode?: "stripe" | "development";
+  checkoutUrl?: string;
+  sessionId?: string;
+  message?: string;
+}
+
 const statusStyles: Record<BookingStatus, string> = {
   requested: "bg-amber-100 text-amber-700",
   accepted: "bg-blue-100 text-blue-700",
@@ -72,6 +80,9 @@ const filters = [
 
 type BookingFilter = (typeof filters)[number];
 
+const paymentCurrency =
+  process.env.NEXT_PUBLIC_PAYMENT_CURRENCY || "BDT";
+
 function formatDate(value?: string) {
   if (!value) return "Not available";
 
@@ -87,9 +98,9 @@ function formatDate(value?: string) {
 }
 
 function formatMoney(value?: number) {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-BD", {
     style: "currency",
-    currency: "USD",
+    currency: paymentCurrency,
   }).format(Number(value) || 0);
 }
 
@@ -131,7 +142,7 @@ export default function CustomerBookingsPage() {
   }, [router]);
 
   useEffect(() => {
-    loadBookings();
+    void loadBookings();
   }, [loadBookings]);
 
   const filteredBookings = useMemo(() => {
@@ -189,45 +200,70 @@ export default function CustomerBookingsPage() {
     }
   }
 
-  async function handlePayment(bookingId: string) {
-    setPayingId(bookingId);
+  async function handlePayment(booking: Booking) {
+    if (
+      booking.status !== "completed" ||
+      booking.paymentStatus !== "unpaid"
+    ) {
+      setError("Only completed and unpaid bookings can be paid.");
+      return;
+    }
+
+    setPayingId(booking._id);
     setError("");
     setNotice("");
 
     try {
-      const response = await authenticatedRequest<{
-        success: boolean;
-        checkoutUrl?: string;
-        sessionId?: string;
-        message?: string;
-      }>("/api/payments/create-checkout-session", {
-        method: "POST",
-        body: JSON.stringify({ bookingId }),
-      });
+      const response =
+        await authenticatedRequest<CheckoutResponse>(
+          "/api/payments/create-checkout-session",
+          {
+            method: "POST",
+            body: JSON.stringify({ bookingId: booking._id }),
+          },
+        );
 
-      if (!response.checkoutUrl) {
-        throw new Error("Stripe checkout URL was not returned.");
+      if (!response.success || !response.checkoutUrl) {
+        throw new Error(
+          response.message || "Unable to create payment checkout.",
+        );
+      }
+
+      if (
+        response.mode !== "stripe" &&
+        response.mode !== "development"
+      ) {
+        throw new Error("The payment mode returned by the server is invalid.");
       }
 
       window.location.assign(response.checkoutUrl);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to start payment.",
-      );
+      const message =
+        err instanceof Error ? err.message : "Unable to start payment.";
+
+      if (message.toLowerCase().includes("session")) {
+        router.replace("/sign-in");
+        return;
+      }
+
+      setError(message);
       setPayingId(null);
     }
   }
 
   const totalBookings = bookings.length;
+
   const completedBookings = bookings.filter(
     (booking) => booking.status === "completed",
   ).length;
+
   const pendingBookings = bookings.filter(
     (booking) =>
       booking.status === "requested" ||
       booking.status === "accepted" ||
       booking.status === "in-progress",
   ).length;
+
   const paidBookings = bookings.filter(
     (booking) => booking.paymentStatus === "paid",
   ).length;
@@ -330,7 +366,7 @@ export default function CustomerBookingsPage() {
 
             <button
               type="button"
-              onClick={loadBookings}
+              onClick={() => void loadBookings()}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
             >
               <RefreshCw size={16} />
@@ -499,7 +535,7 @@ export default function CustomerBookingsPage() {
                           booking.paymentStatus === "unpaid" && (
                             <button
                               type="button"
-                              onClick={() => handlePayment(booking._id)}
+                              onClick={() => handlePayment(booking)}
                               disabled={payingId === booking._id}
                               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
                             >

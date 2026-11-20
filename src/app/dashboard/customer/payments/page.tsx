@@ -22,9 +22,10 @@ interface Payment {
   technicianName: string;
   amount: number;
   currency: string;
-  transactionId: string;
-  paymentStatus: string;
-  paidAt: string;
+  transactionId?: string;
+  paymentProvider?: string;
+  paymentStatus?: string;
+  paidAt?: string;
 }
 
 interface ApiResponse<T> {
@@ -33,7 +34,9 @@ interface ApiResponse<T> {
   count?: number;
 }
 
-function formatDate(value: string) {
+function formatDate(value?: string) {
+  if (!value) return "Not available";
+
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) return "Not available";
@@ -47,11 +50,51 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-function formatAmount(payment: Payment) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: payment.currency?.toUpperCase() || "USD",
-  }).format(payment.amount);
+function formatAmount(amount: number, currency = "BDT") {
+  const normalizedCurrency = currency.toUpperCase();
+
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: normalizedCurrency,
+      maximumFractionDigits: 2,
+    }).format(Number(amount || 0));
+  } catch {
+    return `${normalizedCurrency} ${Number(amount || 0).toLocaleString()}`;
+  }
+}
+
+function getProviderLabel(provider?: string) {
+  if (provider === "stripe") return "Stripe";
+
+  if (provider === "development_simulator") {
+    return "Development Simulator";
+  }
+
+  return "Other";
+}
+
+function getStatusLabel(status?: string) {
+  if (!status) return "Unknown";
+
+  return status
+    .split(/[-_ ]/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function getStatusStyle(status?: string) {
+  const normalized = status?.toLowerCase();
+
+  if (normalized === "paid") {
+    return "bg-green-100 text-green-700";
+  }
+
+  if (normalized === "pending" || normalized === "processing") {
+    return "bg-amber-100 text-amber-700";
+  }
+
+  return "bg-red-100 text-red-700";
 }
 
 export default function CustomerPaymentsPage() {
@@ -72,6 +115,7 @@ export default function CustomerPaymentsPage() {
 
         if (active) {
           setPayments(response.data || []);
+          setError("");
         }
       } catch (err) {
         if (active) {
@@ -101,10 +145,18 @@ export default function CustomerPaymentsPage() {
     };
   }, [router]);
 
-  const totalPaid = payments.reduce(
-    (total, payment) => total + Number(payment.amount || 0),
-    0,
+  const totalsByCurrency = payments.reduce<Record<string, number>>(
+    (totals, payment) => {
+      const currency = (payment.currency || "BDT").toUpperCase();
+      totals[currency] =
+        (totals[currency] || 0) + Number(payment.amount || 0);
+
+      return totals;
+    },
+    {},
   );
+
+  const totalPaidEntries = Object.entries(totalsByCurrency);
 
   if (loading) {
     return (
@@ -161,12 +213,22 @@ export default function CustomerPaymentsPage() {
               <CreditCard className="text-green-600" size={23} />
             </div>
 
-            <p className="mt-4 text-3xl font-bold text-slate-900">
-              {new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: "USD",
-              }).format(totalPaid)}
-            </p>
+            {totalPaidEntries.length === 0 ? (
+              <p className="mt-4 text-2xl font-bold text-slate-900">
+                {formatAmount(0)}
+              </p>
+            ) : (
+              <div className="mt-4 space-y-2">
+                {totalPaidEntries.map(([currency, amount]) => (
+                  <p
+                    key={currency}
+                    className="text-2xl font-bold text-slate-900"
+                  >
+                    {formatAmount(amount, currency)}
+                  </p>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -205,13 +267,14 @@ export default function CustomerPaymentsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full min-w-[900px] text-left text-sm">
                 <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="px-6 py-4">Service</th>
                     <th className="px-6 py-4">Technician</th>
                     <th className="px-6 py-4">Date</th>
                     <th className="px-6 py-4">Amount</th>
+                    <th className="px-6 py-4">Provider</th>
                     <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4">Transaction</th>
                   </tr>
@@ -221,11 +284,11 @@ export default function CustomerPaymentsPage() {
                   {payments.map((payment) => (
                     <tr key={payment._id} className="hover:bg-slate-50">
                       <td className="px-6 py-4 font-semibold text-slate-900">
-                        {payment.serviceTitle}
+                        {payment.serviceTitle || "Repair Service"}
                       </td>
 
                       <td className="px-6 py-4 text-slate-600">
-                        {payment.technicianName}
+                        {payment.technicianName || "Not available"}
                       </td>
 
                       <td className="px-6 py-4 text-slate-600">
@@ -233,18 +296,29 @@ export default function CustomerPaymentsPage() {
                       </td>
 
                       <td className="px-6 py-4 font-bold text-slate-900">
-                        {formatAmount(payment)}
+                        {formatAmount(
+                          Number(payment.amount || 0),
+                          payment.currency,
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4 text-slate-600">
+                        {getProviderLabel(payment.paymentProvider)}
                       </td>
 
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                          <CheckCircle2 size={13} />
-                          Paid
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${getStatusStyle(payment.paymentStatus)}`}
+                        >
+                          {payment.paymentStatus === "paid" && (
+                            <CheckCircle2 size={13} />
+                          )}
+                          {getStatusLabel(payment.paymentStatus)}
                         </span>
                       </td>
 
                       <td className="max-w-40 truncate px-6 py-4 font-mono text-xs text-slate-500">
-                        {payment.transactionId || payment.bookingId}
+                        {payment.transactionId || payment.bookingId || "Not available"}
                       </td>
                     </tr>
                   ))}

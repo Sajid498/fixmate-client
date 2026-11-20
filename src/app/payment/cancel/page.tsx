@@ -13,8 +13,8 @@ export default function PaymentCancelPage() {
         </h1>
 
         <p className="mt-3 text-sm leading-6 text-slate-500">
-          Your checkout was cancelled. You have not completed payment for this
-          repair request. You can return to your bookings and try again later.
+          Your checkout was cancelled. No payment was recorded and your booking
+          remains unpaid. You can try again whenever you are ready.
         </p>
 
         <Link
@@ -22,7 +22,7 @@ export default function PaymentCancelPage() {
           className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
         >
           <CreditCard size={18} />
-          Return to My Bookings
+          Try Again
         </Link>
 
         <Link
