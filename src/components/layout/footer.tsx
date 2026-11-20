@@ -2,8 +2,6 @@
 import Link from "next/link";
 import {
   ArrowUpRight,
-  Facebook,
-  Instagram,
   Mail,
   MapPin,
   Phone,
@@ -44,27 +42,27 @@ export default function Footer() {
               that make your everyday life easier.
             </p>
 
-            <div className="mt-7 flex items-center gap-3">
-              <a
-                href="https://www.facebook.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-600 text-slate-300 transition hover:border-blue-500 hover:bg-blue-600 hover:text-white"
-              >
-                <Facebook size={19} />
-              </a>
+           <div className="mt-7 flex items-center gap-3">
+  <a
+    href="https://www.facebook.com/"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Facebook"
+    className="flex h-11 items-center justify-center rounded-xl border border-slate-600 px-4 text-sm text-slate-300 transition hover:border-blue-500 hover:bg-blue-600 hover:text-white"
+  >
+    Facebook
+  </a>
 
-              <a
-                href="https://www.instagram.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-600 text-slate-300 transition hover:border-pink-500 hover:bg-pink-600 hover:text-white"
-              >
-                <Instagram size={19} />
-              </a>
-            </div>
+  <a
+    href="https://www.instagram.com/"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Instagram"
+    className="flex h-11 items-center justify-center rounded-xl border border-slate-600 px-4 text-sm text-slate-300 transition hover:border-pink-500 hover:bg-pink-600 hover:text-white"
+  >
+    Instagram
+  </a>
+</div>
           </div>
 
           {/* Quick Links */}
