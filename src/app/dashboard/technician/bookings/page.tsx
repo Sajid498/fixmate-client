@@ -14,7 +14,6 @@ import {
   Search,
   UserRound,
   Wrench,
-  XCircle,
   Phone,
   CreditCard,
   Eye,
@@ -115,14 +114,11 @@ export default function TechnicianBookingsPage() {
     try {
       setLoading(true);
 
-      const query =
-        filter === "all" ? "" : `?status=${encodeURIComponent(filter)}`;
-
       const result = await authenticatedRequest<{
         success: boolean;
         count: number;
         data: Booking[];
-      }>(`/api/technician/bookings${query}`);
+      }>("/api/technician/bookings");
 
       setBookings(result.data || []);
     } catch (error) {
@@ -132,7 +128,7 @@ export default function TechnicianBookingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
     loadBookings();
@@ -141,17 +137,21 @@ export default function TechnicianBookingsPage() {
   const filteredBookings = useMemo(() => {
     const term = search.trim().toLowerCase();
 
-    if (!term) return bookings;
+    return bookings.filter((booking) => {
+      const matchesStatus =
+        filter === "all" || booking.status === filter;
 
-    return bookings.filter(
-      (booking) =>
+      const matchesSearch =
+        !term ||
         booking.serviceTitle?.toLowerCase().includes(term) ||
         booking.customerName?.toLowerCase().includes(term) ||
         booking.customerEmail?.toLowerCase().includes(term) ||
         booking.customerPhone?.toLowerCase().includes(term) ||
-        booking.address?.toLowerCase().includes(term)
-    );
-  }, [bookings, search]);
+        booking.address?.toLowerCase().includes(term);
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [bookings, search, filter]);
 
   const counts = useMemo(
     () => ({
@@ -183,10 +183,13 @@ export default function TechnicianBookingsPage() {
         payload.finalAmount = amount;
       }
 
-      await authenticatedRequest(`/api/technician/bookings/${booking._id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
+      await authenticatedRequest(
+        `/api/technician/bookings/${booking._id}/status`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        }
+      );
 
       toast.success(
         status === "completed"
@@ -197,6 +200,7 @@ export default function TechnicianBookingsPage() {
       setSelectedBooking(null);
       setCompletionBooking(null);
       setFinalAmount("");
+
       await loadBookings();
     } catch (error) {
       toast.error(
@@ -427,8 +431,8 @@ export default function TechnicianBookingsPage() {
               No bookings found
             </h3>
             <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-              {search
-                ? "Try another search term."
+              {search || filter !== "all"
+                ? "Try changing your search term or status filter."
                 : "Customer repair requests will appear here when they book your services."}
             </p>
           </div>
@@ -617,7 +621,7 @@ export default function TechnicianBookingsPage() {
                 <div>
                   <p className="text-xs text-slate-400">Final Amount</p>
                   <p className="mt-1 text-lg font-bold text-slate-900">
-                    {selectedBooking.finalAmount
+                    {selectedBooking.finalAmount !== undefined
                       ? `৳${selectedBooking.finalAmount.toLocaleString("en-BD")}`
                       : "Not set"}
                   </p>
