@@ -1,6 +1,12 @@
+
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -50,7 +56,7 @@ const categoryIcons: Record<string, LucideIcon> = {
   "Laptop & PC": Laptop,
   AC: Snowflake,
   Refrigerator,
-  TV:Tv,
+  TV: Tv,
   "Washing Machine": WashingMachine,
   Electrical: Zap,
 };
@@ -99,26 +105,125 @@ type ServicesResponse = {
 
 type ServicesCatalogueProps = {
   initialCategory?: string;
+  initialSearch?: string;
+  initialMode?: string;
+  initialArea?: string;
+  initialSort?: string;
+  initialPage?: string;
 };
 
 export default function ServicesCatalogue({
   initialCategory = "All",
+  initialSearch = "",
+  initialMode = "All",
+  initialArea = "",
+  initialSort = "newest",
+  initialPage = "1",
 }: ServicesCatalogueProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const validCategory = categories.includes(initialCategory)
     ? initialCategory
     : "All";
 
-  const [search, setSearch] = useState("");
+  const validModes = serviceModes;
+  const validSorts = sortOptions.map((option) => option.value);
+
+  const parsedPage = Number.parseInt(initialPage, 10);
+
+  const [search, setSearch] = useState(initialSearch);
   const [category, setCategory] = useState(validCategory);
-  const [mode, setMode] = useState("All");
-  const [area, setArea] = useState("");
-  const [sort, setSort] = useState("newest");
-  const [page, setPage] = useState(1);
+  const [mode, setMode] = useState(
+    validModes.includes(initialMode) ? initialMode : "All"
+  );
+  const [area, setArea] = useState(initialArea);
+  const [sort, setSort] = useState(
+    validSorts.includes(initialSort) ? initialSort : "newest"
+  );
+  const [page, setPage] = useState(
+    Number.isSafeInteger(parsedPage) && parsedPage > 0
+      ? parsedPage
+      : 1
+  );
+
   const [services, setServices] = useState<Service[]>([]);
   const [totalServices, setTotalServices] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Restore filter state when the URL changes,
+  // including browser Back and Forward navigation.
+  useEffect(() => {
+    const urlCategory = searchParams.get("category") || "All";
+    const urlSearch = searchParams.get("search") || "";
+    const urlMode = searchParams.get("serviceMode") || "All";
+    const urlArea = searchParams.get("serviceArea") || "";
+    const urlSort = searchParams.get("sort") || "newest";
+    const urlPage = Number.parseInt(
+      searchParams.get("page") || "1",
+      10
+    );
+
+    setCategory(
+      categories.includes(urlCategory) ? urlCategory : "All"
+    );
+    setSearch(urlSearch);
+    setMode(
+      validModes.includes(urlMode) ? urlMode : "All"
+    );
+    setArea(urlArea);
+    setSort(
+      validSorts.includes(urlSort) ? urlSort : "newest"
+    );
+    setPage(
+      Number.isSafeInteger(urlPage) && urlPage > 0
+        ? urlPage
+        : 1
+    );
+  }, [searchParams]);
+
+  // Keep the browser URL synchronized with the selected filters.
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (search.trim()) params.set("search", search.trim());
+    if (category !== "All") params.set("category", category);
+    if (mode !== "All") params.set("serviceMode", mode);
+    if (area.trim()) params.set("serviceArea", area.trim());
+    if (sort !== "newest") params.set("sort", sort);
+    if (page > 1) params.set("page", String(page));
+
+    const queryString = params.toString();
+    const nextUrl = queryString
+      ? `${pathname}?${queryString}`
+      : pathname;
+
+    const currentUrl = searchParams.toString();
+    const currentPath = currentUrl
+      ? `${pathname}?${currentUrl}`
+      : pathname;
+
+    if (nextUrl !== currentPath) {
+      const timeout = window.setTimeout(() => {
+        router.replace(nextUrl, { scroll: false });
+      }, 300);
+
+      return () => window.clearTimeout(timeout);
+    }
+  }, [
+    search,
+    category,
+    mode,
+    area,
+    sort,
+    page,
+    pathname,
+    router,
+    searchParams,
+  ]);
 
   const loadServices = useCallback(
     async (signal: AbortSignal) => {
@@ -143,38 +248,50 @@ export default function ServicesCatalogue({
             method: "GET",
             cache: "no-store",
             signal,
-          },
+          }
         );
 
-        const result = (await response.json()) as ServicesResponse;
+        const result =
+          (await response.json()) as ServicesResponse;
 
         if (!response.ok || !result.success) {
-          throw new Error(result.message || "Unable to load repair services.");
+          throw new Error(
+            result.message || "Unable to load repair services."
+          );
         }
 
         setServices(result.data || []);
-        setTotalServices(result.pagination?.total ?? result.count ?? 0);
+        setTotalServices(
+          result.pagination?.total ?? result.count ?? 0
+        );
         setTotalPages(result.pagination?.totalPages ?? 0);
       } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") return;
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
 
         setServices([]);
         setTotalServices(0);
         setTotalPages(0);
+
         setError(
           err instanceof Error
             ? err.message
-            : "Unable to load repair services. Please try again.",
+            : "Unable to load repair services. Please try again."
         );
       } finally {
-        if (!signal.aborted) setLoading(false);
+        if (!signal.aborted) {
+          setLoading(false);
+        }
       }
     },
-    [page, search, category, mode, area, sort],
+    [page, search, category, mode, area, sort]
   );
 
+  // Fetch services whenever filters or pagination change.
   useEffect(() => {
     const controller = new AbortController();
+
     const timeout = window.setTimeout(() => {
       loadServices(controller.signal);
     }, 300);
@@ -249,6 +366,7 @@ export default function ServicesCatalogue({
               placeholder="What needs to be repaired?"
               aria-label="Search repair services"
             />
+
             {search && (
               <button
                 type="button"
@@ -298,6 +416,7 @@ export default function ServicesCatalogue({
                   <SlidersHorizontal size={19} />
                   <h3>Filters</h3>
                 </div>
+
                 {hasActiveFilters && (
                   <button type="button" onClick={clearFilters}>
                     Reset
@@ -384,7 +503,10 @@ export default function ServicesCatalogue({
                     aria-label="Sort services"
                   >
                     {sortOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
+                      <option
+                        key={option.value}
+                        value={option.value}
+                      >
                         {option.label}
                       </option>
                     ))}
@@ -398,7 +520,9 @@ export default function ServicesCatalogue({
                     <Wrench size={32} />
                   </span>
                   <h3>Loading repair services...</h3>
-                  <p>Please wait while we find available services.</p>
+                  <p>
+                    Please wait while we find available services.
+                  </p>
                 </div>
               ) : error ? (
                 <div className="services-empty-state">
@@ -426,7 +550,10 @@ export default function ServicesCatalogue({
                       const color = getColor(service.category);
 
                       return (
-                        <article className="service-card" key={service._id}>
+                        <article
+                          className="service-card"
+                          key={service._id}
+                        >
                           <div
                             className={`service-card-visual service-${color}`}
                           >
@@ -505,7 +632,9 @@ export default function ServicesCatalogue({
                       <button
                         type="button"
                         disabled={page <= 1}
-                        onClick={() => setPage((current) => current - 1)}
+                        onClick={() =>
+                          setPage((current) => current - 1)
+                        }
                       >
                         Previous
                       </button>
@@ -517,7 +646,9 @@ export default function ServicesCatalogue({
                       <button
                         type="button"
                         disabled={page >= totalPages}
-                        onClick={() => setPage((current) => current + 1)}
+                        onClick={() =>
+                          setPage((current) => current + 1)
+                        }
                       >
                         Next
                       </button>
