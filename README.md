@@ -1,30 +1,36 @@
-
 # FixMate – Smart Device & Home Appliance Repair Platform
 
 FixMate is a full-stack repair service platform that connects customers with professional technicians for smartphone, laptop, air conditioner, refrigerator, television, washing machine, and electrical appliance repairs.
 
-Customers can discover services, request repairs, track booking progress, and pay after successful completion. Technicians can manage their services and repair requests, while administrators manage users, service approvals, bookings, and payments.
+Customers can discover repair services, submit service requests, track booking progress, and pay after successful completion. Technicians can manage their services and repair requests, while administrators oversee users, service approvals, bookings, and payments.
 
 ## Live Application
 
-- Frontend: To be added after deployment.
-- Backend API: To be added after deployment.
+- **Frontend:** https://fixmate-client-mu.vercel.app
+- **Backend API:** https://fixmate-server-fqv6.onrender.com
+- **Backend Health Check:** https://fixmate-server-fqv6.onrender.com/api/health
 
-## Main Features
+## Repositories
+
+- **Frontend:** https://github.com/Sajid498/fixmate-client
+- **Backend:** https://github.com/Sajid498/fixmate-server
+
+## Key Features
 
 ### Authentication and Authorization
 - User registration and sign-in.
 - Role-based access for customers, technicians, and administrators.
 - Protected dashboard routes.
 - Persistent authentication sessions.
+- Server-side authentication and authorization checks.
 
 ### Customer Features
 - Browse approved repair services.
 - Search, filter, and sort services.
 - View detailed service information.
 - Submit repair requests.
-- Track booking status.
-- Cancel requests while they are still requested.
+- Track booking progress.
+- Cancel requests while their status is `Requested`.
 - Pay for completed repair jobs.
 - View payment history.
 - Manage profile information.
@@ -36,36 +42,43 @@ Customers can discover services, request repairs, track booking progress, and pa
 - View incoming repair requests.
 - Accept or reject requests.
 - Update repair progress.
-- Mark jobs as completed with a final amount.
+- Complete jobs with a final repair amount.
 - Manage profile information.
 
 ### Administrator Features
 - View dashboard statistics.
 - Manage user roles.
 - Approve or reject submitted services.
-- Manage bookings.
-- View payment transactions and revenue reports.
+- Monitor bookings.
+- View payment transactions and revenue information.
 
 ### Payment Features
 - Stripe Checkout integration.
-- Development payment simulator for local development.
+- Development-only payment simulator for local testing.
 - Payment verification.
-- Prevention of duplicate booking payments.
+- Duplicate booking payment prevention.
 - Customer and administrator payment histories.
+
+### Image Upload
+- Service image upload integration using ImgBB.
+- Image URLs are stored with service records and displayed in service listings and details.
 
 ## Technology Stack
 
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-- Better Auth
-- MongoDB
-- Stripe
-- Lucide React
-- Sonner
-- React Hook Form
-- Zod
+| Category | Technologies |
+|---|---|
+| Framework | Next.js |
+| UI Library | React |
+| Language | TypeScript |
+| Styling | Tailwind CSS |
+| Authentication | Better Auth |
+| Database | MongoDB |
+| Payments | Stripe |
+| Image Hosting | ImgBB |
+| Icons | Lucide React |
+| Notifications | Sonner |
+| Forms | React Hook Form |
+| Validation | Zod |
 
 ## Project Structure
 
@@ -91,12 +104,18 @@ fixmate-client/
 └── README.md
 ```
 
-## Installation
+## Getting Started
+
+### Prerequisites
+
+- Node.js and npm.
+- Access to the FixMate backend API.
+- MongoDB configuration required by the authentication setup.
 
 ### 1. Clone the repository
 
 ```bash
-git clone YOUR_FRONTEND_REPOSITORY_URL
+git clone https://github.com/Sajid498/fixmate-client.git
 cd fixmate-client
 ```
 
@@ -110,106 +129,124 @@ npm install
 
 Create a `.env.local` file in the project root.
 
+Use the following example as a guide and compare it with the repository's `.env.example` file before starting the application.
+
 ```env
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:5000
-BETTER_AUTH_SECRET=YOUR_SECRET
+
+BETTER_AUTH_SECRET=YOUR_AUTH_SECRET
 BETTER_AUTH_URL=http://localhost:3000
+
 MONGODB_URI=YOUR_MONGODB_CONNECTION_STRING
-NEXT_PUBLIC_PAYMENT_CURRENCY=BDT
+
+NEXT_PUBLIC_PAYMENT_CURRENCY=bdt
 ```
 
-Use the same authentication secret and appropriate MongoDB connection settings as the backend configuration.
+**Configuration notes:**
+- Use the appropriate local backend URL.
+- Keep authentication secrets and database credentials private.
+- Use the same authentication configuration required by the backend integration.
+- Never commit `.env.local` or production credentials to GitHub.
+- Only expose variables prefixed with `NEXT_PUBLIC_` when they are safe for browser access.
 
-Never commit `.env.local` or expose production credentials.
-
-### 4. Start development server
+### 4. Run the development server
 
 ```bash
 npm run dev
 ```
 
-Open:
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-http://localhost:3000
-
-### 5. Production build
+### 5. Create a production build
 
 ```bash
 npm run build
+```
+
+### 6. Start the production server
+
+```bash
 npm start
 ```
 
-## User Roles
+## User Roles and Permissions
 
-| Role | Access |
+| Role | Main Permissions |
 |---|---|
-| Customer | Browse services, request repairs, manage bookings and payments |
-| Technician | Manage services and repair requests |
-| Admin | Manage users, services, bookings and payments |
+| Customer | Browse services, request repairs, manage bookings, and make payments |
+| Technician | Create and manage services, and process repair requests |
+| Admin | Manage users, approve services, monitor bookings, and view payments |
 
-Public registration is available for customers and technicians. Administrator access must be assigned through a trusted server-side process.
+Public registration is available for customers and technicians. Administrator privileges must be assigned through a trusted server-side process.
 
 ## Booking Workflow
 
 ```text
 Customer submits repair request
-            |
-            v
-       Requested
-            |
-      +-----+-----+
-      |           |
-      v           v
-   Accepted    Rejected
-      |
-      v
-  In Progress
-      |
-      v
-   Completed
-      |
-      v
- Customer Payment
+              |
+              v
+          Requested
+              |
+        +-----+-----+
+        |           |
+        v           v
+     Accepted    Rejected
+        |
+        v
+    In Progress
+        |
+        v
+     Completed
+        |
+        v
+   Customer Payment
 ```
 
-Customers can cancel a request while it remains in the requested state.
+Customers can cancel a booking only while it remains in the `Requested` state.
 
 ## Payment Configuration
 
-The project supports Stripe Checkout and a development-only payment simulator.
+FixMate supports Stripe Checkout and a development-only payment simulator.
 
-Configure the backend payment environment variables to select the appropriate payment mode.
-
-The development simulator must remain disabled in production. It does not process real money.
+- Stripe mode requires valid backend Stripe credentials.
+- Payment verification is handled by the backend.
+- Payment amounts are determined by the booking information stored on the server.
+- Duplicate payments are prevented.
+- The development simulator is intended for local testing only and must not be enabled in production.
 
 ## Deployment
 
-The frontend is designed for deployment on Vercel.
+The frontend is deployed on Vercel.
 
-Before deployment:
+**Production URL:** https://fixmate-client-mu.vercel.app
 
-1. Configure production environment variables.
+Before deploying another environment:
+
+1. Configure the required environment variables.
 2. Set the correct backend API URL.
-3. Configure Better Auth trusted origins.
-4. Configure the production backend URL.
-5. Verify authentication and payment redirect URLs.
-6. Confirm that the backend allows the deployed frontend origin.
+3. Configure Better Auth URLs and trusted origins.
+4. Verify authentication and payment redirect URLs.
+5. Confirm that the backend allows the deployed frontend origin.
+6. Run a production build and test the deployed application.
 
 ## Demo Accounts
 
-Demo credentials will be added after final testing and account creation.
+Use dedicated demonstration accounts for evaluation. Add the verified account emails and passwords to the submission materials.
 
 | Role | Email | Password |
 |---|---|---|
-| Admin | To be added | To be added |
-| Technician | To be added | To be added |
-| Customer | To be added | To be added |
+| Admin | Add verified demo email | Share securely |
+| Technician | Add verified demo email | Share securely |
+| Customer | Add verified demo email | Share securely |
 
-## Related Repository
-
-Backend repository: To be added.
+Do not publish production passwords, API keys, database credentials, or payment secrets in this repository.
 
 ## Project Status
 
-Development and implementation are in progress. Final end-to-end testing and deployment will be completed before submission.
+The FixMate frontend is deployed and available for demonstration.
+
+- Live application: https://fixmate-client-mu.vercel.app
+- Backend API: https://fixmate-server-fqv6.onrender.com
+- Source code: https://github.com/Sajid498/fixmate-client
+
